@@ -877,8 +877,9 @@ static void chihiro_update_jvs_p2(ChihiroJVSState *jvs, const bool *kbd,
      * game must see the switch released, or it retries reads forever. */
     {
         bool chihiro_card_reader_present(int player);
+        extern bool chihiro_card_reader_enabled;
         if (profile == CONFIG_CHIHIRO_JVS_PROFILE_GS &&
-            g_config.chihiro.card_reader.enable &&
+            chihiro_card_reader_enabled &&
             chihiro_card_reader_present(1))
             sw1 |= 0x20;
     }
@@ -980,7 +981,8 @@ static void xemu_input_update_jvs(void)
                 /* Physical insertion microswitch: follows the assigned
                  * card, not the reader toggle. */
                 bool chihiro_card_reader_present(int player);
-                if (g_config.chihiro.card_reader.enable &&
+                extern bool chihiro_card_reader_enabled;
+                if (chihiro_card_reader_enabled &&
                     chihiro_card_reader_present(0))
                     sw1 |= 0x20;
             }
