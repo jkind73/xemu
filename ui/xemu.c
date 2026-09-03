@@ -911,6 +911,7 @@ static void gl_render_frame(struct xemu_console *scon)
     SDL_GL_SwapWindow(scon->real_window);
 #endif
     assert(glGetError() == GL_NO_ERROR);
+    nv2a_profile_present();
 
     qatomic_set(&rendering, false);
 
