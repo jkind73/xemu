@@ -437,6 +437,9 @@ chihiro:
       pedal:
         type: integer
         default: 44
+      reload:
+        type: integer
+        default: 0
     gs:
       trigger:
         type: integer
@@ -447,6 +450,9 @@ chihiro:
       change:
         type: integer
         default: 44
+      reload:
+        type: integer
+        default: 0
     ctx:
       drive_gear:
         type: integer
@@ -517,6 +523,9 @@ chihiro:
     vc3_pedal:
       type: integer
       default: 0
+    vc3_reload:
+      type: integer
+      default: 0
     gs_trigger:
       type: integer
       default: 0
@@ -524,6 +533,9 @@ chihiro:
       type: integer
       default: 0
     gs_change:
+      type: integer
+      default: 0
+    gs_reload:
       type: integer
       default: 0
   settings:
