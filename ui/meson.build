@@ -22,7 +22,6 @@ subdir('thirdparty')
 xemu_ss = ss.source_set()
 xemu_ss.add(files(
   'xemu-input.c',
-  'xemu-pointer.c',
   'xemu-monitor.c',
   'xemu-net.c',
   'xemu-settings.cc',
@@ -38,7 +37,7 @@ xemu_ss.add(files(
 if host_os == 'windows'
   d3d11 = cc.find_library('d3d11', required: true)
   dxgi = cc.find_library('dxgi', required: true)
-  xemu_ss.add(nvapi, d3d11, dxgi)
+  xemu_ss.add([nvapi, hid, d3d11, dxgi])
 endif
 
 subdir('xui')
@@ -49,11 +48,11 @@ if host_os == 'darwin'
 endif
 
 if host_os == 'linux'
-  xemu_ss.add([gtk, files('xemu-os-utils-linux.c')])
+  xemu_ss.add([gtk, files('xemu-os-utils-linux.c', 'xemu-pointer-evdev.c')])
 elif host_os == 'windows'
-  xemu_ss.add(files('xemu-os-utils-windows.c'))
+  xemu_ss.add(files('xemu-os-utils-windows.c', 'xemu-pointer-rawinput.c'))
 elif host_os == 'darwin'
-  xemu_ss.add(files('xemu-os-utils-macos.m'))
+  xemu_ss.add(files('xemu-os-utils-macos.m', 'xemu-pointer-stub.c'))
 endif
 xemu_ss.add(imgui, implot, stb_image, sdl, opengl, fa, fpng, json, fatx, tomlplusplus, genconfig)
 system_ss.add_all(xemu_ss)
