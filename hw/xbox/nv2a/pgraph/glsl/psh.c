@@ -459,8 +459,10 @@ static MString* get_output(MString *reg, int mapping)
         res = mstring_from_fmt("(%s / 2.0)", mstring_get_str(reg));
         break;
     default:
-        fprintf(stderr, "Invalid PS_COMBINEROUTPUT mode: %d\n", mapping);
-        assert(!"Invalid PS_COMBINEROUTPUT mode");
+        /* The field's encodings 0x28 and 0x38 have no defined meaning; it
+         * comes from a guest register, so pass through unscaled, no abort. */
+        mstring_ref(reg);
+        res = reg;
         break;
     }
     return res;
