@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: false
+      description:
+        description: "Release notes / description (optional)"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: write
@@ -69,3 +74,4 @@ jobs:
       ref: ${{ needs.tag.outputs.tag }}
       tag: ${{ needs.tag.outputs.tag }}
       draft: ${{ inputs.draft }}
+      description: ${{ inputs.description }}
