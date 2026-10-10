@@ -17,6 +17,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build
@@ -28,12 +31,16 @@ jobs:
     name: Delete pre-release
     needs: build
     if: ${{ inputs.pre-release }}
+    permissions:
+      contents: write
     uses: ./.github/workflows/delete-prerelease.yml
 
   release:
     name: Create release
     runs-on: ubuntu-latest
     needs: [build, delete_prerelease]
+    permissions:
+      contents: write
     if: ${{ !cancelled() && needs.build.result == 'success' }}
     steps:
     - name: Clone tree
