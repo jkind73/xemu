@@ -16,6 +16,11 @@ on:
         required: false
         type: boolean
         default: false
+      draft:
+        description: "Create draft release"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -70,7 +75,7 @@ jobs:
         tag_name: ${{ inputs.tag }}
         target_commitish: ${{ inputs.pre-release && inputs.ref || '' }}
         body_path: CHANGELOG.md
-        draft: ${{ !inputs.pre-release }}
+        draft: ${{ inputs.draft }}
         prerelease: ${{ inputs.pre-release }}
         files: |
           dist/xemu*.tar.zst

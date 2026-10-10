@@ -2,6 +2,17 @@ name: Release (Dispatched)
 
 on:
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v0.8.137). Leave blank to auto-increment from latest."
+        required: false
+        type: string
+        default: ""
+      draft:
+        description: "Create as draft (uncheck to publish immediately)"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -24,14 +35,22 @@ jobs:
     - name: Determine new tag version
       id: semver
       run: |
-        latest=$(
-          git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v[0-9]*.[0-9]*.[0-9]*' |
-          awk '{print $2}' | sed 's#refs/tags/##' | sort -V | tail -n 1
-        )
-        [ -z "$latest" ] && latest="v0.0.0"
-        ver="${latest#v}"
-        IFS=. read -r major minor patch <<< "$ver"
-        next="v${major}.${minor}.$((patch+1))"
+        input_tag="${{ inputs.tag }}"
+        if [ -n "$input_tag" ]; then
+          case "$input_tag" in
+            v*) next="$input_tag" ;;
+            *) next="v$input_tag" ;;
+          esac
+        else
+          latest=$(
+            git ls-remote --tags --refs "https://github.com/${GITHUB_REPOSITORY}.git" 'v[0-9]*.[0-9]*.[0-9]*' |
+            awk '{print $2}' | sed 's#refs/tags/##' | sort -V | tail -n 1
+          )
+          [ -z "$latest" ] && latest="v0.0.0"
+          ver="${latest#v}"
+          IFS=. read -r major minor patch <<< "$ver"
+          next="v${major}.${minor}.$((patch+1))"
+        fi
         echo "next=$next" >> "$GITHUB_OUTPUT"
     - name: Push new tag
       run: |
@@ -49,3 +68,4 @@ jobs:
     with:
       ref: ${{ needs.tag.outputs.tag }}
       tag: ${{ needs.tag.outputs.tag }}
+      draft: ${{ inputs.draft }}
