@@ -27,6 +27,7 @@
 #include "ui/xemu-billboard.h"
 #include "ui/xemu-settings.h"
 #include "hw/xbox/chihiro/chihiro-cabinet.h"
+#include <math.h>
 #include <SDL3/SDL.h>
 #include <glib.h>
 
