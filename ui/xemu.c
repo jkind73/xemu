@@ -51,6 +51,7 @@
 #include "xemu-xbe.h"
 #include "hw/xbox/chihiro/chihiro.h"
 #include "xemu-os-utils.h"
+#include "xemu-billboard.h"
 
 #include "data/xemu_64x64.png.h"
 
@@ -1067,6 +1068,11 @@ static void poll_events(struct xemu_console *scon)
         xemu_hud_process_sdl_events(ev);
         xemu_input_process_sdl_events(ev);
 
+        if (xemu_billboard_handle_event(ev)) {
+            xemu_main_loop_unlock();
+            continue;
+        }
+
         switch (ev->type) {
         case SDL_EVENT_KEY_DOWN:
             if (kbd) break;
@@ -1581,13 +1587,17 @@ int main(int argc, char **argv)
     xemu_input_init();
     xemu_main_loop_unlock();
 
+    xemu_billboard_init();
+
     struct xemu_console *scon = &scon_list[0];
     while (!qatomic_read(&qemu_exiting)) {
         poll_events(scon);
         gl_render_frame(scon);
+        xemu_billboard_update();
     }
     qemu_sem_post(&display_shutdown_sem);
     qemu_thread_join(&thread);
+    xemu_billboard_cleanup();
     display_finalize();
     /* The NVIDIA EGL DSO destructors -- registered when SDL created the
      * GL context, i.e. AFTER our atexit above, so they run FIRST in the

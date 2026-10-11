@@ -41,6 +41,7 @@
 #include "../xemu-net.h"
 #include "../xemu-os-utils.h"
 #include "../xemu-xbe.h"
+#include "../xemu-billboard.h"
 
 #include "../thirdparty/fatx/fatx.h"
 #include <algorithm>
@@ -1709,6 +1710,33 @@ void MainMenuChihiroView::Draw()
             Toggle("Invert Force Feedback",
                    &g_config.chihiro.settings.ffb_invert,
                    "Enable if the wheel pulls away from center instead of toward it");
+        }
+    }
+
+    if (ImGui::CollapsingHeader("Billboard Display")) {
+        if (Toggle("Billboard Second Window", &g_config.chihiro.billboard.enable,
+                   "Open native second window/display for arcade spectator video")) {
+            if (g_config.chihiro.billboard.enable) {
+                xemu_billboard_init();
+            } else {
+                xemu_billboard_cleanup();
+            }
+        }
+        if (g_config.chihiro.billboard.enable) {
+            ImGui::SliderInt("Target Monitor", &g_config.chihiro.billboard.monitor,
+                             0, 8, "%d");
+            ImGui::SetItemTooltip("Monitor index for the billboard display (0=Primary, 1=Second monitor, etc.)");
+            Toggle("Fullscreen", &g_config.chihiro.billboard.fullscreen,
+                   "Show billboard in fullscreen on the selected monitor");
+            static const SDL_DialogFileFilter video_filters[] = {
+                { "Video Files", "mp4;sfd" },
+                { "All Files", "*" }
+            };
+            FilePicker("Movies Directory", g_config.chihiro.billboard.movie_dir,
+                       video_filters, 2, true, [](const char *path) {
+                xemu_settings_set_string(&g_config.chihiro.billboard.movie_dir, path);
+            }, true);
+            ImGui::TextDisabled("Location of stitched 16:9 MP4 attract/spectator movies (E02.mp4-E17.mp4)");
         }
     }
 }

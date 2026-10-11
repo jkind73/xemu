@@ -865,6 +865,20 @@ chihiro:
     card2_path:
       type: string
       default: ""
+  billboard:
+    # Secondary window/monitor display for spectator and attract video playback
+    enable:
+      type: bool
+      default: false
+    monitor:
+      type: integer
+      default: 1
+    fullscreen:
+      type: bool
+      default: false
+    movie_dir:
+      type: string
+      default: ""
   roms:
     bios_path:
       type: string

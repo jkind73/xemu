@@ -1111,6 +1111,10 @@ static const ChihiroCabinet chihiro_cabinets[] = {
      * SC UART1, Ghost Squad's player 1 wire, same frames and blocks (gs.xbe
      * FUN_00079a90, FUN_0007ae00); UART0 is never opened. */
     { "gs",        CONFIG_CHIHIRO_JVS_PROFILE_GUNDAM, CHIHIRO_CARD_HW210,  CHIHIRO_DRIVE_NONE,    false, CHIHIRO_MONITOR_15KHZ, &chihiro_card_stock_gs, "gundamos", { 0x40, 0x00 } },
+    /* Gundam Card Builder (G_XB.xbe, test G_TEST.xbe): one HW210-family reader,
+     * dual-screen spectator billboard. */
+    { "G_XB",      CONFIG_CHIHIRO_JVS_PROFILE_GUNDAM, CHIHIRO_CARD_HW210,  CHIHIRO_DRIVE_NONE,    false, CHIHIRO_MONITOR_15KHZ, &chihiro_card_stock_gs, "gundcb79", { 0x40, 0x00 } },
+    { "G_TEST",    CONFIG_CHIHIRO_JVS_PROFILE_GUNDAM, CHIHIRO_CARD_HW210,  CHIHIRO_DRIVE_NONE,    false, CHIHIRO_MONITOR_15KHZ, &chihiro_card_stock_gs, "gundcb79", { 0x40, 0x00 } },
     /* 31 kHz sit-down cabinets: only the monitor is stated (MJ3 Evolution
      * stops on Caution 51 at 15 kHz). */
     { "mj3",       -1,                               CHIHIRO_CARD_NONE,    CHIHIRO_DRIVE_NONE,    false, CHIHIRO_MONITOR_31KHZ, NULL, NULL, { 0, 0 } },
@@ -1225,6 +1229,11 @@ ChihiroMonitorKind chihiro_cabinet_monitor(void)
 {
     const ChihiroCabinet *c = chihiro_cabinet();
     return c ? c->monitor : CHIHIRO_MONITOR_15KHZ;
+}
+
+bool chihiro_cabinet_has_billboard(void)
+{
+    return chihiro_cabinet_is("G_XB") || chihiro_cabinet_is("G_TEST");
 }
 
 /* Execution VAs of the SEGABOOT the board boots: the second megabyte of the

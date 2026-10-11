@@ -51,6 +51,7 @@ typedef enum {
 ChihiroCardReaderKind chihiro_cabinet_card_reader(void);
 ChihiroDriveBoardKind chihiro_cabinet_drive_board(void);
 ChihiroMonitorKind    chihiro_cabinet_monitor(void);
+bool                  chihiro_cabinet_has_billboard(void);
 /* The JVS general-purpose output (bank 0) that locks this slot's card in,
  * 0 when the cabinet has none there. */
 uint8_t               chihiro_cabinet_card_lock(int player);
