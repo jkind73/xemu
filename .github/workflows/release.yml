@@ -26,6 +26,11 @@ on:
         required: false
         type: string
         default: ""
+      windows_only:
+        description: "Build Windows only"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -36,6 +41,7 @@ jobs:
     uses: ./.github/workflows/build.yml
     with:
       ref: ${{ inputs.ref }}
+      windows_only: ${{ inputs.windows_only }}
 
   delete_prerelease:
     name: Delete pre-release
@@ -77,8 +83,9 @@ jobs:
       if: ${{ !inputs.pre-release }}
       run: |
         pushd dist
-        cp xemu-${{ needs.build.outputs.pkg_version }}-windows-x86_64.zip xemu-win-x86_64-release.zip
-        cp xemu-${{ needs.build.outputs.pkg_version }}-windows-arm64.zip xemu-win-aarch64-release.zip
+        [ -f xemu-${{ needs.build.outputs.pkg_version }}-windows-x86_64.zip ] && cp xemu-${{ needs.build.outputs.pkg_version }}-windows-x86_64.zip xemu-win-x86_64-release.zip || true
+        [ -f xemu-${{ needs.build.outputs.pkg_version }}-windows-arm64.zip ] && cp xemu-${{ needs.build.outputs.pkg_version }}-windows-arm64.zip xemu-win-aarch64-release.zip || true
+        popd
     - name: Create release
       uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
       with:

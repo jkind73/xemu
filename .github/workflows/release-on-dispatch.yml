@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: ""
+      windows_only:
+        description: "Build Windows only (skips macOS and Linux to save minutes)"
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -75,3 +80,4 @@ jobs:
       tag: ${{ needs.tag.outputs.tag }}
       draft: ${{ inputs.draft }}
       description: ${{ inputs.description }}
+      windows_only: ${{ inputs.windows_only }}
