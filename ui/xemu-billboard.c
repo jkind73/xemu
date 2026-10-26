@@ -47,6 +47,7 @@ static SDL_Texture *s_billboard_texture = NULL;
 
 static bool s_is_active = false;
 static bool s_is_fullscreen = false;
+static bool s_billboard_init_failed = false;
 
 static uint32_t *s_frame_buffer = NULL;
 static QemuMutex s_frame_mutex;
@@ -190,7 +191,7 @@ static void *billboard_stream_worker(void *arg)
 
 void xemu_billboard_init(void)
 {
-    if (s_billboard_window) {
+    if (s_billboard_window || s_billboard_init_failed) {
         return;
     }
 
@@ -227,6 +228,7 @@ void xemu_billboard_init(void)
     if (!s_billboard_window) {
         fprintf(stderr, "Failed to create Billboard window: %s\n",
                 SDL_GetError());
+        s_billboard_init_failed = true;
         return;
     }
 
@@ -256,6 +258,7 @@ void xemu_billboard_init(void)
                 SDL_GetError());
         SDL_DestroyWindow(s_billboard_window);
         s_billboard_window = NULL;
+        s_billboard_init_failed = true;
         return;
     }
 
@@ -315,10 +318,15 @@ void xemu_billboard_cleanup(void)
     }
 
     s_is_active = false;
+    s_billboard_init_failed = false;
 }
 
 void xemu_billboard_update(void)
 {
+    if (s_billboard_init_failed) {
+        return;
+    }
+
     if (!s_billboard_window) {
         if (g_config.chihiro.billboard.enable ||
             chihiro_cabinet_has_billboard()) {
