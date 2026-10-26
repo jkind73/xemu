@@ -319,7 +319,15 @@ void xemu_billboard_cleanup(void)
 
 void xemu_billboard_update(void)
 {
-    if (!s_is_active || !s_billboard_window || !s_billboard_renderer) {
+    if (!s_billboard_window) {
+        if (g_config.chihiro.billboard.enable ||
+            chihiro_cabinet_has_billboard()) {
+            xemu_billboard_init();
+        }
+        return;
+    }
+
+    if (!s_is_active || !s_billboard_renderer) {
         return;
     }
 

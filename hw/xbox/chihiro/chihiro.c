@@ -2468,11 +2468,33 @@ static const uint8_t chihiro_gundam_patched[] = {
     0x3C, 0x09, 0x90, 0xE9, 0xDE, 0x00, 0x00, 0x00
 };
 
+static const uint8_t chihiro_gundcb_check[] = {
+    0x3C, 0x12, 0x73, 0x09
+};
+static const uint8_t chihiro_gundcb_patched[] = {
+    0xEB, 0x1C, 0x90, 0x90
+};
+
 static const ChihiroGamePatch chihiro_game_patches[] = {
-    { "gs.xbe", 0x0006499F, chihiro_gundam_check, chihiro_gundam_patched,
+    { "gs.xbe",        0x0006499F, chihiro_gundam_check, chihiro_gundam_patched,
       sizeof(chihiro_gundam_check),
       "Gundam reads the network firmware version as two separate numbers and "
       "refuses 13.05; its second compare no longer decides" },
+    { "G_XB.xbe",      0x0017AE24, chihiro_gundcb_check, chihiro_gundcb_patched,
+      sizeof(chihiro_gundcb_check),
+      "Gundam Card Builder refuses network firmware 13.05; bypass 18.07 check" },
+    { "G_TEST.xbe",    0x0017AE14, chihiro_gundcb_check, chihiro_gundcb_patched,
+      sizeof(chihiro_gundcb_check),
+      "Gundam Card Builder test mode refuses network firmware 13.05; bypass 18.07 check" },
+    { "G_XB.xbe",      0x001CA984, chihiro_gundcb_check, chihiro_gundcb_patched,
+      sizeof(chihiro_gundcb_check),
+      "Gundam Card Builder (rev A) refuses network firmware 13.05; bypass 18.07 check" },
+    { "G_TEST.xbe",    0x001CA994, chihiro_gundcb_check, chihiro_gundcb_patched,
+      sizeof(chihiro_gundcb_check),
+      "Gundam Card Builder (rev A) test mode refuses network firmware 13.05; bypass 18.07 check" },
+    { "G_XB_df.xbe",   0x001C9A24, chihiro_gundcb_check, chihiro_gundcb_patched,
+      sizeof(chihiro_gundcb_check),
+      "Gundam Card Builder (debug) refuses network firmware 13.05; bypass 18.07 check" },
 };
 
 static void chihiro_patch_running_game(void)
