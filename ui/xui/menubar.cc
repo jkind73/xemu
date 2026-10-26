@@ -26,6 +26,7 @@
 #include "debug.hh"
 #include "actions.hh"
 #include "compat.hh"
+#include "github-issue.hh"
 #include "update.hh"
 #include "../xemu-os-utils.h"
 
@@ -258,6 +259,7 @@ void ShowMainMenu()
              * upstream xemu's server.
             ImGui::MenuItem("Report Compatibility...", NULL,
                             &compatibility_reporter_window.is_open);
+            ShowReportGitHubIssueMenuItem();
              */
             /* Commented out: xemu's updater would install upstream xemu
              * over this build.

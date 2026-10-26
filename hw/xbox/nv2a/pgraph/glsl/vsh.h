@@ -44,6 +44,7 @@ typedef struct FixedFunctionVshState {
      * negated normal and the back light/material registers instead of
      * passing the vertex back colours through. */
     bool two_sided;
+    bool texgen_infinite_viewer;
 } FixedFunctionVshState;
 
 typedef struct ProgrammableVshState {
@@ -64,8 +65,6 @@ typedef struct {
     bool specular_enable;
     bool separate_specular;
     bool ignore_specular_alpha;
-    float specular_power;
-    float specular_power_back;
 
     bool point_params_enable;
     float point_size;
@@ -95,8 +94,10 @@ void pgraph_glsl_set_vsh_state(PGRAPHState *pg, VshState *state);
     DECL(S, ltctxb, vec4, NV2A_LTCTXB_COUNT)                 \
     DECL(S, material_alpha, float, 1)                        \
     DECL(S, pointParams, float, 8)                           \
-    DECL(S, specularPower, float, 1)                         \
-    DECL(S, surfaceSize, vec2, 1)
+    DECL(S, specularParams, vec3, 1)                         \
+    DECL(S, specularParamsBack, vec3, 1)                     \
+    DECL(S, surfaceSize, vec2, 1)                            \
+    DECL(S, vshCarryFog, vec4, 1)
 
 DECL_UNIFORM_TYPES(VshUniform, VSH_UNIFORM_DECL_X)
 

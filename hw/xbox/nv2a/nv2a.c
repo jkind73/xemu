@@ -346,6 +346,11 @@ static void nv2a_reset(NV2AState *d)
     d->pgraph.waiting_for_flip = false;
     d->pgraph.waiting_for_context_switch = false;
 
+    d->pgraph.vsh_carry_fog[0] = 0.0f;
+    d->pgraph.vsh_carry_fog[1] = 0.0f;
+    d->pgraph.vsh_carry_fog[2] = 0.0f;
+    d->pgraph.vsh_carry_fog[3] = 1.0f;
+
     d->pmc.pending_interrupts = 0;
     d->pfifo.pending_interrupts = 0;
     d->ptimer.pending_interrupts = 0;
@@ -475,6 +480,13 @@ static int nv2a_pre_load(void *opaque)
 static int nv2a_post_load(void *opaque, int version_id)
 {
     NV2AState *d = opaque;
+    if (version_id < 5) {
+        d->pgraph.vsh_carry_fog[0] = 0.0f;
+        d->pgraph.vsh_carry_fog[1] = 0.0f;
+        d->pgraph.vsh_carry_fog[2] = 0.0f;
+        d->pgraph.vsh_carry_fog[3] = 1.0f;
+    }
+    d->pgraph.vsh_carry_cache_dirty = true;
     qatomic_set(&d->pgraph.flush_pending, true);
     nv2a_unlock_fifo(d);
     return 0;
@@ -512,7 +524,7 @@ static const VMStateDescription vmstate_nv2a_two_side = {
 
 static const VMStateDescription vmstate_nv2a = {
     .name = "nv2a",
-    .version_id = 4,
+    .version_id = 5,
     .minimum_version_id = 1,
     .post_save = nv2a_post_save,
     .post_load = nv2a_post_load,
@@ -636,6 +648,8 @@ static const VMStateDescription vmstate_nv2a = {
         VMSTATE_UINT64_V(ptimer.alarm_time, NV2AState, 4),
         VMSTATE_UINT64_V(ptimer.time_offset, NV2AState, 4),
         VMSTATE_TIMER_V(ptimer.timer, NV2AState, 4),
+        VMSTATE_BUFFER_UNSAFE(pgraph.vsh_carry_fog, NV2AState, 5,
+                              sizeof(((PGRAPHState *)0)->vsh_carry_fog)),
         VMSTATE_END_OF_LIST()
     },
     .subsections = (const VMStateDescription * const []) {
