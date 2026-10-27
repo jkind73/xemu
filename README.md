@@ -75,7 +75,7 @@ Chihiro games require **NetBoot `.bin`** memory images, and titles with secondar
 ### Step 1: Converting Game CHDs to NetBoot `.bin`
 To convert a game GD-ROM / DVD CHD (e.g. `gdx-0013.chd`, `gdx-0017.chd`) to a bootable NetBoot `.bin` image:
 
-1. Download **[Chihiro-netboot](https://github.com/Tovarichtch/chihiro-netboot)**.
+1. Download **[Chihiro-netboot](https://github.com/jkind73/chihiro-netboot)** (use this repository, which includes the fix for FATX partition detection and DES decryption on Gundam and multi-partition CHDs).
 2. Run the tool to unpack and decrypt the partition:
    ```bash
    python chihiro-netboot.py --extract <path_to_game.chd> -o <output_folder>
