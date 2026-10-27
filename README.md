@@ -99,10 +99,10 @@ To extract and stitch them into modern panoramic `.mp4` files:
    - Extract `E02L_max.sfd` + `E02R_max.sfd` through `E17L_max.sfd` + `E17R_max.sfd`.
    - Stitch the Left and Right halves together using FFmpeg `hstack`.
    - Encode standard widescreen **`E02.mp4` through `E17.mp4`** files with high-quality AAC stereo audio.
-4. Place the generated `.mp4` files into one of the following locations:
-   - A `movies/` folder beside `xemu.exe`.
-   - `Z:\roms\Chihiro-NetBoot\movies\`.
-   - Any custom folder specified in `xemu.toml` under `[chihiro.billboard] movie_dir = "..."`.
+4. Store the generated `.mp4` files in any folder of your choice:
+   - In xemu, open the menu and go to **Chihiro → Billboard** to select your movies folder using the file picker (**Movies Directory**).
+   - Alternatively, place them in a `movies/` folder beside `xemu.exe` (detected automatically).
+   - Or set `movie_dir = "path/to/movies"` in your `xemu.toml`.
 
 ---
 

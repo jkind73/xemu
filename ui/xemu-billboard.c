@@ -230,13 +230,7 @@ static bool find_movie_file(int event_id, char *out_path, size_t max_len)
         }
     }
 
-    /* 2. Check Z:/roms/Chihiro-NetBoot/movies */
-    snprintf(out_path, max_len, "Z:/roms/Chihiro-NetBoot/movies/%s", filename);
-    if (g_file_test(out_path, G_FILE_TEST_EXISTS)) {
-        return true;
-    }
-
-    /* 3. Check local movies/ folder */
+    /* 2. Check local movies/ folder */
     snprintf(out_path, max_len, "movies/%s", filename);
     if (g_file_test(out_path, G_FILE_TEST_EXISTS)) {
         return true;
