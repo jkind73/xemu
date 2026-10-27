@@ -2,9 +2,11 @@
  * Sega Chihiro Master Billboard / Secondary Window Display
  *
  * Implements the auxiliary spectator/attract display for Sega Chihiro
- * arcade cabinets (such as Mobile Suit Gundam: 0079 Card Builder).
+ * arcade cabinets (such as Mobile Suit Gundam: 0079 Card Builder and
+ * Mobile Suit Gundam: Battle Operating Simulator).
  * Provides multi-monitor second-window display with stitched panoramic
- * (16:9) video playback.
+ * (16:9) video playback, synchronized audio, and authentic arcade
+ * event progression (Attract -> Coin/Card Briefing -> Sortie -> Combat HUD -> Game Over).
  *
  * Copyright (c) 2026 xemu team
  *
@@ -35,6 +37,13 @@
 #include <windows.h>
 #define popen _popen
 #define pclose _pclose
+#else
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#define closesocket close
 #endif
 
 #define BILLBOARD_WIDTH 832
@@ -54,47 +63,150 @@ static QemuMutex s_frame_mutex;
 static bool s_frame_ready = false;
 static bool s_mutex_inited = false;
 
-/* Video streaming thread */
+/* Video and audio streaming thread */
 static QemuThread s_stream_thread;
 static bool s_stream_running = false;
 static bool s_stream_stop = false;
-static int s_active_event_id = 2; /* Default attract event (E02..E17) */
+
+/* Background UDP listener thread */
+static QemuThread s_udp_thread;
+static bool s_udp_running = false;
+
+/* Arcade event state */
+static int s_active_event_id = 2; /* 2 = E02 (Attract) */
+static int s_requested_event_id = 2;
+static bool s_event_changed = false;
+static QemuMutex s_event_mutex;
+static bool s_event_mutex_inited = false;
+
+#ifdef _WIN32
+static PROCESS_INFORMATION s_audio_proc;
+static bool s_audio_running = false;
+
+static void stop_audio_playback(void)
+{
+    if (s_audio_running && s_audio_proc.hProcess) {
+        TerminateProcess(s_audio_proc.hProcess, 0);
+        CloseHandle(s_audio_proc.hProcess);
+        CloseHandle(s_audio_proc.hThread);
+        s_audio_running = false;
+        memset(&s_audio_proc, 0, sizeof(s_audio_proc));
+    }
+}
+
+static void start_audio_playback(const char *path)
+{
+    stop_audio_playback();
+
+    char cmd[1024];
+    snprintf(cmd, sizeof(cmd),
+             "ffplay -nodisp -autoexit -loglevel quiet \"%s\"", path);
+
+    STARTUPINFOA si;
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESHOWWINDOW;
+    si.wShowWindow = SW_HIDE;
+
+    memset(&s_audio_proc, 0, sizeof(s_audio_proc));
+    if (CreateProcessA(NULL, cmd, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL,
+                       NULL, &si, &s_audio_proc)) {
+        s_audio_running = true;
+    }
+}
+#else
+static pid_t s_audio_pid = -1;
+
+static void stop_audio_playback(void)
+{
+    if (s_audio_pid > 0) {
+        kill(s_audio_pid, SIGTERM);
+        waitpid(s_audio_pid, NULL, WNOHANG);
+        s_audio_pid = -1;
+    }
+}
+
+static void start_audio_playback(const char *path)
+{
+    stop_audio_playback();
+    s_audio_pid = fork();
+    if (s_audio_pid == 0) {
+        execlp("ffplay", "ffplay", "-nodisp", "-autoexit", "-loglevel", "quiet",
+               path, (char *)NULL);
+        _exit(1);
+    }
+}
+#endif
 
 static void render_standby_pattern(uint32_t *buf, int w, int h)
 {
-    /* Render a clean arcade spectator test card / standby graphic */
+    /* Calculate animated sweep angle based on real time (rotates every 3 seconds) */
+    int64_t now_us = g_get_real_time();
+    float sweep_angle =
+        fmodf((float)(now_us % 3000000) / 3000000.0f * 6.2831853f, 6.2831853f);
+    int cx = w / 2;
+    int cy = h / 2;
+
     for (int y = 0; y < h; y++) {
+        int dy = y - cy;
         for (int x = 0; x < w; x++) {
-            /* Dark slate tech background with subtle grid */
-            uint8_t r = 16, g = 20, b = 28;
+            int dx = x - cx;
+            int dist2 = dx * dx + dy * dy;
 
-            /* Grid lines */
+            /* Base dark navy slate background */
+            uint8_t r = 10, g = 15, b = 24;
+
+            /* Subtle grid lines */
             if ((x % 32 == 0) || (y % 32 == 0)) {
-                r += 12;
-                g += 16;
-                b += 24;
+                r += 8;
+                g += 12;
+                b += 18;
             }
 
-            /* Center 16:9 active display frame border */
-            if (x == 4 || x == w - 5 || y == 4 || y == h - 5) {
-                r = 40;
-                g = 120;
-                b = 220;
+            /* Concentric radar range rings (r = 60, 120, 180, 220) */
+            int dist = (int)sqrtf((float)dist2);
+            if (abs(dist - 60) <= 1 || abs(dist - 120) <= 1 ||
+                abs(dist - 180) <= 1 || abs(dist - 220) <= 1) {
+                r = 20;
+                g = 70;
+                b = 140;
             }
 
-            /* Arcade banner block across the center */
-            if (y >= 190 && y <= 290) {
-                float intensity = 1.0f - (fabsf((float)y - 240.0f) / 50.0f);
-                r = (uint8_t)(20 + 20 * intensity);
-                g = (uint8_t)(40 + 60 * intensity);
-                b = (uint8_t)(80 + 120 * intensity);
+            /* Center crosshairs */
+            if ((abs(dx) <= 1 && abs(dy) < 225) ||
+                (abs(dy) <= 1 && abs(dx) < 225)) {
+                r = 25;
+                g = 80;
+                b = 160;
+            }
 
-                /* Side markers */
-                if (x < 30 || x > w - 31) {
-                    r = 255;
-                    g = 180;
-                    b = 30;
+            /* Rotating radar sweep beam (within 220px radius) */
+            if (dist < 220 && dist > 2) {
+                float angle = atan2f((float)dy, (float)dx);
+                if (angle < 0.0f) {
+                    angle += 6.2831853f;
                 }
+                float diff = sweep_angle - angle;
+                if (diff < 0.0f) {
+                    diff += 6.2831853f;
+                }
+                if (diff < 0.35f) {
+                    float fade = 1.0f - (diff / 0.35f);
+                    g = (uint8_t)fminf(255.0f, g + 130.0f * fade);
+                    b = (uint8_t)fminf(255.0f, b + 180.0f * fade);
+                }
+            }
+
+            /* Top and bottom telemetry border strips */
+            if (y < 26 || y > h - 27) {
+                r = 16;
+                g = 24;
+                b = 40;
+            }
+            if (y == 26 || y == h - 27) {
+                r = 40;
+                g = 130;
+                b = 230;
             }
 
             buf[y * w + x] = (255u << 24) | ((uint32_t)r << 16) |
@@ -133,15 +245,115 @@ static bool find_movie_file(int event_id, char *out_path, size_t max_len)
     return false;
 }
 
+static void *billboard_udp_worker(void *arg)
+{
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock < 0) {
+        return NULL;
+    }
+
+    int opt = 1;
+    setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (const char *)&opt, sizeof(opt));
+
+    struct sockaddr_in addr;
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(30004);
+    addr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(sock, (struct sockaddr *)&addr, sizeof(addr)) != 0) {
+        closesocket(sock);
+        return NULL;
+    }
+
+#ifdef _WIN32
+    DWORD timeout = 500;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&timeout,
+               sizeof(timeout));
+#else
+    struct timeval tv;
+    tv.tv_sec = 0;
+    tv.tv_usec = 500000;
+    setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&tv, sizeof(tv));
+#endif
+
+    char buf[256];
+    while (!qatomic_read(&s_stream_stop)) {
+        int len = recv(sock, buf, sizeof(buf) - 1, 0);
+        if (len > 0) {
+            buf[len] = '\0';
+            int ev = 0;
+            if (sscanf(buf, "E%d", &ev) == 1 && ev >= 2 && ev <= 17) {
+                xemu_billboard_play_event(ev);
+            } else if (strstr(buf, "ATTRACT")) {
+                xemu_billboard_play_event(2);
+            } else if (strstr(buf, "COIN") || strstr(buf, "BRIEFING")) {
+                xemu_billboard_play_event(3);
+            } else if (strstr(buf, "BOOT")) {
+                xemu_billboard_play_event(4);
+            } else if (strstr(buf, "SORTIE") || strstr(buf, "LAUNCH")) {
+                xemu_billboard_play_event(5);
+            } else if (strstr(buf, "ALERT")) {
+                xemu_billboard_play_event(7);
+            } else if (strstr(buf, "CLEAR")) {
+                xemu_billboard_play_event(16);
+            } else if (strstr(buf, "GAMEOVER")) {
+                xemu_billboard_play_event(17);
+            } else if (strstr(buf, "STANDBY")) {
+                xemu_billboard_play_event(0);
+            }
+        }
+    }
+
+    closesocket(sock);
+    return NULL;
+}
+
 static void *billboard_stream_worker(void *arg)
 {
     size_t frame_bytes = BILLBOARD_WIDTH * BILLBOARD_HEIGHT * 4;
     uint8_t *pipe_buf = g_malloc0(frame_bytes);
 
     while (!qatomic_read(&s_stream_stop)) {
-        char movie_path[1024];
-        int event = s_active_event_id;
+        if (!s_event_mutex_inited) {
+            qemu_mutex_init(&s_event_mutex);
+            s_event_mutex_inited = true;
+        }
 
+        qemu_mutex_lock(&s_event_mutex);
+        int event = s_requested_event_id;
+        s_active_event_id = event;
+        s_event_changed = false;
+        qemu_mutex_unlock(&s_event_mutex);
+
+        /* Event 0 = Standby / Radar HUD mode (no video stream, render standby HUD) */
+        if (event == 0) {
+            stop_audio_playback();
+            qemu_mutex_lock(&s_frame_mutex);
+            if (s_frame_buffer) {
+                render_standby_pattern(s_frame_buffer, BILLBOARD_WIDTH,
+                                       BILLBOARD_HEIGHT);
+                s_frame_ready = true;
+            }
+            qemu_mutex_unlock(&s_frame_mutex);
+
+            /* Animate radar pattern smoothly at ~30 fps while checking for event changes */
+            for (int i = 0; i < 30 && !qatomic_read(&s_stream_stop) &&
+                            !s_event_changed;
+                 i++) {
+                g_usleep(33000); /* ~33ms */
+                qemu_mutex_lock(&s_frame_mutex);
+                if (s_frame_buffer) {
+                    render_standby_pattern(s_frame_buffer, BILLBOARD_WIDTH,
+                                           BILLBOARD_HEIGHT);
+                    s_frame_ready = true;
+                }
+                qemu_mutex_unlock(&s_frame_mutex);
+            }
+            continue;
+        }
+
+        char movie_path[1024];
         if (!find_movie_file(event, movie_path, sizeof(movie_path))) {
             /* If movie file is not found, sleep briefly and keep standby
              * pattern */
@@ -162,7 +374,16 @@ static void *billboard_stream_worker(void *arg)
             continue;
         }
 
+        /* Start synchronized audio playback */
+        start_audio_playback(movie_path);
+
+        bool natural_finish = true;
         while (!qatomic_read(&s_stream_stop)) {
+            if (s_event_changed) {
+                natural_finish = false;
+                break; /* Immediate cutscene transition on event trigger */
+            }
+
             size_t bytes_read = fread(pipe_buf, 1, frame_bytes, p);
             if (bytes_read != frame_bytes) {
                 break; /* End of stream */
@@ -176,12 +397,61 @@ static void *billboard_stream_worker(void *arg)
             qemu_mutex_unlock(&s_frame_mutex);
         }
 
+        stop_audio_playback();
         pclose(p);
 
-        /* Loop through attract events (E02 through E17) */
-        s_active_event_id++;
-        if (s_active_event_id > 17) {
-            s_active_event_id = 2;
+        if (qatomic_read(&s_stream_stop)) {
+            break;
+        }
+
+        /* Authentic Arcade Sequence Progression when cutscene finishes naturally */
+        if (natural_finish) {
+            qemu_mutex_lock(&s_event_mutex);
+            if (!s_event_changed) {
+                switch (event) {
+                case 2:
+                    /* Attract mode: Loop E02.mp4 continuously */
+                    s_requested_event_id = 2;
+                    break;
+                case 3:
+                    /* Coin/Card Insertion -> advance to E04 (OS Boot sequence) */
+                    s_requested_event_id = 4;
+                    break;
+                case 4:
+                    /* OS Boot -> advance to E05 (Sortie / Catapult Launch) */
+                    s_requested_event_id = 5;
+                    break;
+                case 5:
+                    /* Sortie launch finished -> cockpit handover / tactical radar HUD */
+                    s_requested_event_id = 0;
+                    break;
+                case 6:
+                case 7:
+                case 8:
+                case 9:
+                case 10:
+                case 11:
+                case 12:
+                case 13:
+                case 14:
+                case 15:
+                    /* Combat dynamic alerts finished -> return to tactical radar HUD */
+                    s_requested_event_id = 0;
+                    break;
+                case 16:
+                    /* Mission Complete -> advance to E17 (Rank Assessment) */
+                    s_requested_event_id = 17;
+                    break;
+                case 17:
+                    /* Game Over / Rank Assessment finished -> return to Attract (E02) */
+                    s_requested_event_id = 2;
+                    break;
+                default:
+                    s_requested_event_id = 2;
+                    break;
+                }
+            }
+            qemu_mutex_unlock(&s_event_mutex);
         }
     }
 
@@ -204,6 +474,11 @@ void xemu_billboard_init(void)
     if (!s_mutex_inited) {
         qemu_mutex_init(&s_frame_mutex);
         s_mutex_inited = true;
+    }
+
+    if (!s_event_mutex_inited) {
+        qemu_mutex_init(&s_event_mutex);
+        s_event_mutex_inited = true;
     }
 
     if (!s_frame_buffer) {
@@ -279,6 +554,11 @@ void xemu_billboard_init(void)
                        billboard_stream_worker, NULL, QEMU_THREAD_JOINABLE);
     s_stream_running = true;
 
+    /* Start background UDP event listener */
+    qemu_thread_create(&s_udp_thread, "billboard-udp", billboard_udp_worker,
+                       NULL, QEMU_THREAD_JOINABLE);
+    s_udp_running = true;
+
     fprintf(stderr,
             "Chihiro Billboard Display initialized successfully (%dx%d).\n",
             BILLBOARD_WIDTH, BILLBOARD_HEIGHT);
@@ -286,8 +566,15 @@ void xemu_billboard_init(void)
 
 void xemu_billboard_cleanup(void)
 {
+    qatomic_set(&s_stream_stop, true);
+    stop_audio_playback();
+
+    if (s_udp_running) {
+        qemu_thread_join(&s_udp_thread);
+        s_udp_running = false;
+    }
+
     if (s_stream_running) {
-        qatomic_set(&s_stream_stop, true);
         qemu_thread_join(&s_stream_thread);
         s_stream_running = false;
     }
@@ -315,6 +602,11 @@ void xemu_billboard_cleanup(void)
     if (s_mutex_inited) {
         qemu_mutex_destroy(&s_frame_mutex);
         s_mutex_inited = false;
+    }
+
+    if (s_event_mutex_inited) {
+        qemu_mutex_destroy(&s_event_mutex);
+        s_event_mutex_inited = false;
     }
 
     s_is_active = false;
@@ -411,12 +703,39 @@ bool xemu_billboard_handle_event(const SDL_Event *ev)
     }
 
     if (ev->type == SDL_EVENT_KEY_DOWN && ev->key.windowID == billboard_id) {
-        if (ev->key.scancode == SDL_SCANCODE_F11) {
+        switch (ev->key.scancode) {
+        case SDL_SCANCODE_F1:
+            xemu_billboard_play_event(2); /* Attract Mode (E02) */
+            return true;
+        case SDL_SCANCODE_F2:
+            xemu_billboard_play_event(3); /* Coin / Briefing (E03) */
+            return true;
+        case SDL_SCANCODE_F3:
+            xemu_billboard_play_event(4); /* OS Diagnostics Boot (E04) */
+            return true;
+        case SDL_SCANCODE_F4:
+            xemu_billboard_play_event(5); /* Sortie Catapult Launch (E05) */
+            return true;
+        case SDL_SCANCODE_F5:
+            xemu_billboard_play_event(7); /* Combat Ace Alert (E07) */
+            return true;
+        case SDL_SCANCODE_F6:
+            xemu_billboard_play_event(16); /* Mission Clear / Evac (E16) */
+            return true;
+        case SDL_SCANCODE_F7:
+            xemu_billboard_play_event(17); /* Game Over / Rank (E17) */
+            return true;
+        case SDL_SCANCODE_F8:
+        case SDL_SCANCODE_SPACE:
+            xemu_billboard_play_event(0); /* Tactical Spectator Radar HUD */
+            return true;
+        case SDL_SCANCODE_F11:
             s_is_fullscreen = !s_is_fullscreen;
             SDL_SetWindowFullscreen(s_billboard_window, s_is_fullscreen);
             return true;
+        default:
+            return true;
         }
-        return true;
     }
 
     return false;
@@ -424,8 +743,34 @@ bool xemu_billboard_handle_event(const SDL_Event *ev)
 
 void xemu_billboard_play_event(int event_id)
 {
-    if (event_id >= 2 && event_id <= 17) {
-        s_active_event_id = event_id;
+    if (event_id < 0 || event_id > 17) {
+        return;
+    }
+
+    if (!s_event_mutex_inited) {
+        qemu_mutex_init(&s_event_mutex);
+        s_event_mutex_inited = true;
+    }
+
+    qemu_mutex_lock(&s_event_mutex);
+    s_requested_event_id = event_id;
+    s_event_changed = true;
+    qemu_mutex_unlock(&s_event_mutex);
+}
+
+void xemu_billboard_on_coin_inserted(void)
+{
+    /* If currently in Attract mode (E02) or standby radar, start briefing (E03) */
+    if (s_active_event_id == 2 || s_active_event_id == 0) {
+        xemu_billboard_play_event(3);
+    }
+}
+
+void xemu_billboard_on_card_inserted(void)
+{
+    /* If currently in Attract mode (E02) or standby radar, start briefing (E03) */
+    if (s_active_event_id == 2 || s_active_event_id == 0) {
+        xemu_billboard_play_event(3);
     }
 }
 

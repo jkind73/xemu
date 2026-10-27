@@ -32,6 +32,8 @@ void xemu_billboard_cleanup(void);
 void xemu_billboard_update(void);
 bool xemu_billboard_handle_event(const SDL_Event *ev);
 void xemu_billboard_play_event(int event_id);
+void xemu_billboard_on_coin_inserted(void);
+void xemu_billboard_on_card_inserted(void);
 bool xemu_billboard_is_active(void);
 void xemu_billboard_set_active(bool active);
 

@@ -43,6 +43,7 @@
 #include "hw/xbox/chihiro/chihiro-driveboard-sega838.h"
 #include "hw/xbox/chihiro/chihiro-driveboard-v257.h"
 #include "hw/xbox/chihiro/chihiro-cardreader-hw210.h"
+#include "xemu-billboard.h"
 
 extern SDL_Window *m_window;
 extern int viewport_coords[4];
@@ -1261,8 +1262,10 @@ static void chihiro_update_jvs_p2(ChihiroJVSState *jvs, const bool *kbd,
     static bool coin_prev;
     bool coin_key = chihiro_check_input(g_config.chihiro.jvs_p2.coin, kbd,
                                         mouseBtn);
-    if (coin_key && !coin_prev)
+    if (coin_key && !coin_prev) {
         jvs->coin_count[1]++;
+        xemu_billboard_on_coin_inserted();
+    }
     coin_prev = coin_key;
 }
 
@@ -1515,8 +1518,10 @@ static void xemu_input_update_jvs(void)
 
     static bool coin_prev;
     bool coin_key = chihiro_check_input(g_config.chihiro.jvs.coin, kbd, mouseBtn);
-    if (coin_key && !coin_prev)
+    if (coin_key && !coin_prev) {
         jvs->coin_count[0]++;
+        xemu_billboard_on_coin_inserted();
+    }
     coin_prev = coin_key;
 }
 

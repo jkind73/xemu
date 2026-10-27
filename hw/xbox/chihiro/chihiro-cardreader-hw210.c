@@ -24,6 +24,7 @@
 #include "chihiro-cardreader-hw210.h"
 #include "chihiro-log.h"
 #include "chihiro.h"
+#include "ui/xemu-billboard.h"
 
 static uint8_t compute_checksum(const uint8_t *buf, int len)
 {
@@ -150,6 +151,7 @@ void card_reader_insert(CardReaderState *s, const char *path,
         if (n == CARD_TOTAL_SIZE) {
             s->card_present = true;
             s->dirty = false;
+            xemu_billboard_on_card_inserted();
             return;
         }
         /* Any other size is not a card: taking it in would overwrite it with
@@ -179,6 +181,7 @@ void card_reader_insert(CardReaderState *s, const char *path,
     s->dirty = true;
     card_reader_flush(s);
     CHIHIRO_LOGF(CARD, "HW210: fresh card written to %s\n", path);
+    xemu_billboard_on_card_inserted();
 }
 
 void card_reader_remove(CardReaderState *s)
