@@ -1530,7 +1530,12 @@ int main(int argc, char **argv)
                 xemu_settings_set_path(argv[i+1]);
                 argv[i+1] = NULL;
             }
-            break;
+        } else if (argv[i] && strcmp(argv[i], "-chihiro_config_path") == 0) {
+            argv[i] = NULL;
+            if (i < argc - 1 && argv[i+1]) {
+                xemu_settings_set_chihiro_path(argv[i+1]);
+                argv[i+1] = NULL;
+            }
         }
     }
 

@@ -65,6 +65,10 @@ const char *xemu_chihiro_image(void);
 // Get path of the config file on disk
 const char *xemu_settings_get_path(void);
 
+// Override or get path of the Chihiro-specific config file on disk (chihiro.toml)
+void xemu_settings_set_chihiro_path(const char *path);
+const char *xemu_settings_get_chihiro_path(void);
+
 // Get path of the default generated eeprom file on disk
 const char *xemu_settings_get_default_eeprom_path(void);
 

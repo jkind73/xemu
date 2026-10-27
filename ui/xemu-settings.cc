@@ -40,7 +40,9 @@
 struct config g_config;
 
 static const char *filename = "xemu.toml";
+static const char *chihiro_filename = "chihiro.toml";
 static const char *settings_path;
+static const char *chihiro_settings_path;
 static std::string error_msg;
 
 const char *xemu_settings_get_error_message(void)
@@ -50,16 +52,29 @@ const char *xemu_settings_get_error_message(void)
 
 static bool xemu_settings_detect_portable_mode(void)
 {
-    bool val = false;
-    char *portable_path = g_strdup_printf("%s%s", SDL_GetBasePath(), filename);
-    FILE *tmpfile;
-    if ((tmpfile = qemu_fopen(portable_path, "r"))) {
-        fclose(tmpfile);
-        val = true;
+    const char *base = SDL_GetBasePath();
+    if (!base) {
+        return false;
     }
 
-    free(portable_path);
-    return val;
+    char *portable_chihiro = g_strdup_printf("%s%s", base, chihiro_filename);
+    FILE *tmpfile;
+    if ((tmpfile = qemu_fopen(portable_chihiro, "r"))) {
+        fclose(tmpfile);
+        g_free(portable_chihiro);
+        return true;
+    }
+    g_free(portable_chihiro);
+
+    char *portable_path = g_strdup_printf("%s%s", base, filename);
+    if ((tmpfile = qemu_fopen(portable_path, "r"))) {
+        fclose(tmpfile);
+        g_free(portable_path);
+        return true;
+    }
+    g_free(portable_path);
+
+    return false;
 }
 
 void xemu_settings_set_path(const char *path)
@@ -68,6 +83,14 @@ void xemu_settings_set_path(const char *path)
     assert(settings_path == NULL);
     settings_path = path;
     fprintf(stderr, "%s: config path: %s\n", __func__, settings_path);
+}
+
+void xemu_settings_set_chihiro_path(const char *path)
+{
+    assert(path != NULL);
+    assert(chihiro_settings_path == NULL);
+    chihiro_settings_path = path;
+    fprintf(stderr, "%s: chihiro config path: %s\n", __func__, chihiro_settings_path);
 }
 
 const char *xemu_settings_get_base_path(void)
@@ -102,6 +125,19 @@ const char *xemu_settings_get_path(void)
     settings_path = g_strdup_printf("%s%s", base, filename);
     fprintf(stderr, "%s: config path: %s\n", __func__, settings_path);
     return settings_path;
+}
+
+const char *xemu_settings_get_chihiro_path(void)
+{
+    if (chihiro_settings_path != NULL) {
+        return chihiro_settings_path;
+    }
+
+    const char *base = xemu_settings_get_base_path();
+    assert(base != NULL);
+    chihiro_settings_path = g_strdup_printf("%s%s", base, chihiro_filename);
+    fprintf(stderr, "%s: chihiro config path: %s\n", __func__, chihiro_settings_path);
+    return chihiro_settings_path;
 }
 
 const char *xemu_settings_get_default_eeprom_path(void)
@@ -155,50 +191,78 @@ static const char *read_file(FILE *fd)
     return buf;
 }
 
+static bool parse_and_apply_toml_file(const char *path, std::string &err_out)
+{
+    if (qemu_access(path, F_OK) == -1) {
+        return false;
+    }
+
+    FILE *fd = qemu_fopen(path, "rb");
+    if (!fd) {
+        err_out = std::string("Failed to open config file for reading: ") + path + "\n";
+        return false;
+    }
+
+    const char *buf = read_file(fd);
+    fclose(fd);
+    if (!buf) {
+        err_out = std::string("Failed to read config file: ") + path + "\n";
+        return false;
+    }
+
+    char *previous_numeric_locale = setlocale(LC_NUMERIC, NULL);
+    if (previous_numeric_locale) {
+        previous_numeric_locale = g_strdup(previous_numeric_locale);
+    }
+    setlocale(LC_NUMERIC, "C");
+
+    bool ok = false;
+    try {
+        config_tree.update_from_table(toml::parse(buf));
+        ok = true;
+    } catch (const toml::parse_error &err) {
+        std::ostringstream oss;
+        oss << "Error parsing config file at " << err.source().begin << " (" << path << "):\n"
+            << "    " << err.description() << "\n"
+            << "Please fix the error or delete the file to continue.\n";
+        err_out = oss.str();
+    }
+    free((char *)buf);
+
+    if (previous_numeric_locale) {
+        setlocale(LC_NUMERIC, previous_numeric_locale);
+        g_free(previous_numeric_locale);
+    }
+
+    return ok;
+}
+
 bool xemu_settings_load(void)
 {
     const char *settings_path = xemu_settings_get_path();
-    bool success = false;
+    const char *chihiro_path = xemu_settings_get_chihiro_path();
+    bool loaded_any = false;
 
-    if (qemu_access(settings_path, F_OK) == -1) {
-        fprintf(stderr, "Config file not found, starting with default settings.\n");
-        success = true;
-    } else {
-        FILE *fd = qemu_fopen(settings_path, "rb");
-        if (fd) {
-            const char *buf = read_file(fd);
-            if (buf) {
-                char *previous_numeric_locale = setlocale(LC_NUMERIC, NULL);
-                if (previous_numeric_locale) {
-                    previous_numeric_locale = g_strdup(previous_numeric_locale);
-                }
+    /* 1. Load common settings from xemu.toml (if present) */
+    std::string err;
+    if (parse_and_apply_toml_file(settings_path, err)) {
+        loaded_any = true;
+        fprintf(stderr, "%s: loaded common settings from %s\n", __func__, settings_path);
+    } else if (!err.empty()) {
+        error_msg += err;
+    }
 
-                /* Ensure numeric values are scanned with '.' radix, no grouping */
-                setlocale(LC_NUMERIC, "C");
+    /* 2. Load Chihiro-specific settings and overrides from chihiro.toml (higher priority) */
+    err.clear();
+    if (parse_and_apply_toml_file(chihiro_path, err)) {
+        loaded_any = true;
+        fprintf(stderr, "%s: loaded chihiro settings from %s\n", __func__, chihiro_path);
+    } else if (!err.empty()) {
+        error_msg += err;
+    }
 
-                try {
-                    config_tree.update_from_table(toml::parse(buf));
-                    success = true;
-                } catch (const toml::parse_error& err) {
-                   std::ostringstream oss;
-                   oss << "Error parsing config file at " << err.source().begin << ":\n"
-                       << "    " << err.description() << "\n"
-                       << "Please fix the error or delete the file to continue.\n";
-                   error_msg = oss.str();
-                }
-                free((char*)buf);
-
-                if (previous_numeric_locale) {
-                    setlocale(LC_NUMERIC, previous_numeric_locale);
-                    g_free(previous_numeric_locale);
-                }
-            } else {
-                error_msg = "Failed to read config file.\n";
-            }
-            fclose(fd);
-        } else {
-            error_msg = "Failed to open config file for reading. Check permissions.\n";
-        }
+    if (!loaded_any && error_msg.empty()) {
+        fprintf(stderr, "No config files found, starting with default settings.\n");
     }
 
     /* CHIHIRO (not upstream): OutRun 2's own gear keys are now the gear
@@ -231,17 +295,11 @@ bool xemu_settings_load(void)
 
     config_tree.store_to_struct(&g_config);
 
-    return success;
+    return error_msg.empty();
 }
 
 void xemu_settings_save(void)
 {
-    FILE *fd = qemu_fopen(xemu_settings_get_path(), "wb");
-    if (!fd) {
-        fprintf(stderr, "Failed to open config file for writing. Check permissions.\n");
-        return;
-    }
-
     char *previous_numeric_locale = setlocale(LC_NUMERIC, NULL);
     if (previous_numeric_locale) {
         previous_numeric_locale = g_strdup(previous_numeric_locale);
@@ -256,8 +314,39 @@ void xemu_settings_save(void)
     g_config.input.allow_vibration = true;
 
     config_tree.update_from_struct(&g_config);
-    fprintf(fd, "%s", config_tree.generate_delta_toml().c_str());
-    fclose(fd);
+
+    /* 1. Save chihiro.toml: holds the [chihiro] section exclusively */
+    CNode *chihiro_node = config_tree.child("chihiro");
+    if (chihiro_node) {
+        const char *chihiro_path = xemu_settings_get_chihiro_path();
+        std::string chihiro_toml = chihiro_node->generate_delta_toml("", false, 0, false);
+        if (!chihiro_toml.empty() || qemu_access(chihiro_path, F_OK) == 0) {
+            FILE *cfd = qemu_fopen(chihiro_path, "wb");
+            if (cfd) {
+                fprintf(cfd, "%s", chihiro_toml.c_str());
+                fclose(cfd);
+            } else {
+                fprintf(stderr, "Failed to open chihiro config file for writing: %s\n", chihiro_path);
+            }
+        }
+    }
+
+    /* 2. Save xemu.toml: holds common sections (everything EXCEPT [chihiro]) */
+    const char *settings_path = xemu_settings_get_path();
+    FILE *fd = qemu_fopen(settings_path, "wb");
+    if (fd) {
+        std::string xemu_toml = "";
+        for (auto &c : config_tree.children) {
+            if (c.name == "chihiro") {
+                continue;
+            }
+            xemu_toml += c.generate_delta_toml("", false, 0, false);
+        }
+        fprintf(fd, "%s", xemu_toml.c_str());
+        fclose(fd);
+    } else {
+        fprintf(stderr, "Failed to open config file for writing. Check permissions.\n");
+    }
 
     if (previous_numeric_locale) {
         setlocale(LC_NUMERIC, previous_numeric_locale);

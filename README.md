@@ -102,13 +102,18 @@ To extract and stitch them into modern panoramic `.mp4` files:
 4. Store the generated `.mp4` files in any folder of your choice:
    - In xemu, open the menu and go to **Chihiro → Billboard** to select your movies folder using the file picker (**Movies Directory**).
    - Alternatively, place them in a `movies/` folder beside `xemu.exe` (detected automatically).
-   - Or set `movie_dir = "path/to/movies"` in your `xemu.toml`.
+   - Or set `movie_dir = "path/to/movies"` in your `chihiro.toml`.
 
 ---
 
 ## Configuration & Usage
 
-In `xemu.toml` (or via the **Chihiro** settings menu in xemu):
+This fork uses a **two-tier configuration system** to keep your retail Xbox settings completely separated from Chihiro arcade settings:
+
+* **`xemu.toml`**: Shared common settings (display, audio volume, controller bindings, retail Xbox BIOS/EEPROM).
+* **`chihiro.toml`**: Chihiro-specific arcade settings (`[chihiro]`, ROM paths, JVS controls, card readers, billboard). Any setting defined in `chihiro.toml` takes **higher priority** over `xemu.toml`.
+
+Your settings can be edited via the in-emulator **Chihiro** menu or directly in `chihiro.toml`:
 
 ```toml
 [chihiro]
@@ -119,7 +124,12 @@ enable = true
 monitor = 1            # Target monitor index (0 = primary, 1 = secondary)
 fullscreen = false     # Start billboard in borderless fullscreen
 movie_dir = "movies"   # Directory containing E02.mp4..E17.mp4
+
+[chihiro.roms]
+bios_path = "chihiro_xbox_bios.bin"
 ```
+
+Both files can reside in the default app data directory (`%APPDATA%\xemu\xemu\` on Windows / `~/.local/share/xemu/xemu/` on Linux) or in portable mode next to `xemu.exe`.
 
 ---
 
