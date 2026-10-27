@@ -1,6 +1,6 @@
 # xemu Chihiro Fork
 
-A specialized fork of [xemu](https://xemu.app) dedicated to emulating the **Sega Chihiro** arcade platform (built on custom original Xbox hardware). It boots authentic arcade firmware, speaks native Chihiro I/O protocols (JVS, AN2131/8051, drive boards, card readers), and brings authentic arcade experiences to modern PC setups.
+A specialized fork of [xemu](https://xemu.app) dedicated to emulating the **Sega Chihiro** arcade platform (built on custom original Xbox hardware). Originally developed and brought to life by **[Tovarichtch](https://github.com/Tovarichtch)**—whose groundbreaking engineering and reverse-engineering work made a working Sega Chihiro emulator possible—this project boots authentic arcade firmware, speaks native Chihiro I/O protocols (JVS, AN2131/8051, drive boards, card readers), and brings authentic arcade experiences to modern PC setups.
 
 ---
 
@@ -137,9 +137,10 @@ Both files can reside in the default app data directory (`%APPDATA%\xemu\xemu\` 
 
 GPL-2.0, matching upstream xemu.
 
-## Acknowledgements
+## Acknowledgements & Credits
 
-* Upstream [xemu](https://xemu.app) project by Matt Borgerson and contributors.
-* Sega Chihiro emulation research by Tovarichtch, Réda Chérif-Touil, and the arcade preservation community.
-* Special thanks to the arcade testing community for feedback and validation.
+* **[Tovarichtch](https://github.com/Tovarichtch)**: The pioneer and creator of Sega Chihiro emulation in xemu. If we have a working, bootable Sega Chihiro arcade emulator today, it is fundamentally thanks to his monumental reverse-engineering and development effort—implementing the Chihiro hardware architecture, Media Board, JVS protocol, drive boards, and card readers. Follow his work on the [Arcade Community Discord](https://discord.gg/a2rHM7BVy).
+* **Upstream [xemu](https://xemu.app)**: The original Xbox emulator project created by Matt Borgerson and open-source contributors.
+* **Réda Chérif-Touil & Arcade Preservationists**: For crucial hardware research, documentation, and firmware dumps.
+* **SUPA Peter & Testers**: For extensive testing and hardware verification across countless arcade revisions.
 
