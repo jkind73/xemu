@@ -1,117 +1,135 @@
-<img width="488" height="104" alt="chihiro-logo" src="https://github.com/user-attachments/assets/6fd9a78f-b636-4eb9-91f9-4f27a075e9bf" />
+# xemu Chihiro Fork
 
-# xemu Chihiro fork by Tovarichtch
+A specialized fork of [xemu](https://xemu.app) dedicated to emulating the **Sega Chihiro** arcade platform (built on custom original Xbox hardware). It boots authentic arcade firmware, speaks native Chihiro I/O protocols (JVS, AN2131/8051, drive boards, card readers), and brings authentic arcade experiences to modern PC setups.
 
-A fork of [xemu](https://xemu.app) that emulates the **Sega Chihiro**, the arcade
-board Sega built on Xbox hardware. It boots the cabinet's own firmware, speaks the
-arcade's own protocols, and plays games with the controls they were built for.
+---
 
-# Supported games
+## Supported Games
 
-| Game | Status | Note |
+| Game | Status | Notes |
 |---|---|---|
-| Crazy Taxi High Roller | ✅ |
-| Ghost Squad | ✅ |
-| Gundam Battle Operating Simulator | ✅ | network firmware required |
-| OutRun 2 | ✅ |
-| OutRun 2 SP | ✅ | network firmware required |
-| Ollie King | ✅ |
-| The House of the Dead III | ✅ |
-| Virtua Cop 3 | ✅ |
-| Wangan Midnight: Maximum Tune | ✅ |
-| Wangan Midnight: Maximum Tune 2 | ✅ |
-| Satellite Terminal games | ❌ | ALL.net; touchpad not emulated |
+| **Crazy Taxi High Roller** | ✅ | Force feedback & auto-centering supported |
+| **Ghost Squad** | ✅ | Full light gun & Tamura HW210 card reader support |
+| **Mobile Suit Gundam: Battle Operating Simulator** | ✅ | Network firmware required; Master Billboard dual-display supported |
+| **Mobile Suit Gundam 0079: Card Builder** | ✅ | Network firmware 18.07 bypass integrated; Master Billboard supported |
+| **Ollie King** | ✅ | Multi-cabinet LAN linking supported |
+| **OutRun 2** | ✅ | Force feedback & multi-cabinet linking supported |
+| **OutRun 2 SP** | ✅ | Network firmware required; Force feedback & LAN linking |
+| **The House of the Dead III** | ✅ | Light gun calibration supported |
+| **Virtua Cop 3** | ✅ | Dual light gun & pedal support |
+| **Wangan Midnight: Maximum Tune** | ✅ | Namco V257 drive board & Sanwa card reader support |
+| **Wangan Midnight: Maximum Tune 2** | ✅ | Namco V257 drive board & Sanwa card reader support |
 
-# Main features
+---
 
-### Type-1 and Type-3 boards
+## What This Fork Brings to the Table
 
-Both types are emulated with their own full protocol from boot to launch. The arcade I/O protocol is spoken by the emulated AN2131 with its 8051 core, its serial lines and its endpoints, not faked above them. The media board and its ROMs are emulated, and their state is real state. **Games must be .bin netboot images: make them with my tool [Chihiro-netboot](https://github.com/Tovarichtch/chihiro-netboot)**. All regions work: xemu picks one the game accepts.
+### 1. Gundam Card Builder Network Firmware 18.07 Bypass
+* *Mobile Suit Gundam 0079: Card Builder* (`G_XB.xbe`) normally refuses to boot without arcade network firmware version **18.07** or higher.
+* Because only firmware version 13.05 (`ver1305.bin`) is publicly dumped, this fork integrates an automated in-memory firmware check bypass for `G_XB.xbe`, `G_TEST.xbe`, and `G_XB_df.xbe`.
+* **Result**: Gundam Card Builder boots and plays seamlessly using standard `ver1305.bin` firmware.
 
-## Light guns
+### 2. Master Billboard / Secondary Spectator Display
+Chihiro Gundam cabinets featured an auxiliary widescreen spectator billboard mounted above or beside the cabinet. This fork brings a dedicated secondary display window replicating authentic arcade behavior:
 
-- One pointer per player, each read on its own device (evdev on Linux, Raw Input
-  on Windows). Up to 32 pointer devices, perfect for big arcade cabinet setups.
-- A crosshair per player, with its own image and size of your choice.
-- Sinden border around the game or the whole window, with its thickness. (Shout-out to the Sinden Lightgun Discord community!)
-- F3 (default) toggles Light Gun Mode: in gun games the cursor hides and the mouse no longer opens xemu's menus.
+* **Synchronized Audio & Video**: Streams high-definition 16:9 panoramic video cutscenes with full stereo AAC audio decoded in real time.
+* **Authentic Arcade Flow & State Progression**:
+  * **Attract Mode (Idle)**: Loops `E02.mp4` (CGI intro & launch animatic) continuously while no one is playing.
+  * **Coin / IC Card Insertion**: Instantly cuts to `E03.mp4` (Mission Briefing), flows into `E04.mp4` (Cockpit OS Boot), then `E05.mp4` (Catapult Launch / Sortie).
+  * **Active Combat**: Transitions to an animated **tactical spectator radar HUD** (with rotating sweep beam, concentric range rings, and status telemetry).
+  * **Dynamic Ace Alerts**: Dynamic encounters (`E06`–`E15`) interrupt with sirens, radar blips, and pilot communications (Char, Amuro, etc.), then automatically return to the tactical radar HUD.
+  * **Mission Clear & Game Over**: Plays `E16.mp4` (Evacuation / Clear) followed by `E17.mp4` (Score & Rank Assessment), then returns to the Attract mode loop.
+* **Built-in UDP Port 30004 Listener**: Background socket listener compatible with `chihiro-billboard.py`, TeknoParrot, or external game scripts for instant real-time event triggers (`E02`..`E17`, `ATTRACT`, `SORTIE`, `STANDBY`).
+* **Hotkeys**: Press keys on the billboard window for instant testing:
+  * `F1`: Attract (`E02`)
+  * `F2`: Coin / Briefing (`E03`)
+  * `F3`: OS Boot (`E04`)
+  * `F4`: Catapult Sortie (`E05`)
+  * `F5`: Ace Pilot Alert (`E07`)
+  * `F6`: Mission Clear (`E16`)
+  * `F7`: Game Over (`E17`)
+  * `F8` / `Space`: Tactical Radar HUD
+  * `F11`: Fullscreen toggle
 
-## Steering wheel and force feedback
+### 3. Light Guns & Pointer Devices
+* Raw Input (Windows) and evdev (Linux) supporting up to 32 independent pointing devices.
+* Customizable per-player crosshairs.
+* Sinden lightgun border support with configurable thickness.
+* `F3` shortcut toggles Light Gun Mode (hides desktop cursor and locks out menus during play).
 
-- Namco V257 (Maximum Tune series) and Sega 838-13683 (OutRun 2 series) drive boards emulated at the protocol level: real force feedback on a wheel, rumble on a gamepad.
-- Settings for rotation, strength and weight to your taste; invert switch for wheels whose drivers push the wrong way.
-- Auto-centering for Crazy Taxi, while the game is not driving the wheel, because no auto-centering feels wrong on a driving game.
+### 4. Steering Wheels & Real Force Feedback
+* Native protocol-level emulation for Namco V257 and Sega 838-13683 drive boards.
+* True force feedback on DirectInput / SDL haptic wheels; gamepad rumble fallback.
+* Auto-centering emulation for titles like *Crazy Taxi*.
 
-## Card reader
+### 5. IC Card Readers (Save Your Progress)
+* Fully emulated **Tamura (SAXA) HW210** (Ghost Squad, Gundam) and **Sanwa CRP-1231LR-10NAB** (Maximum Tune).
+* Insert cards with a single hotkey; player stats, rank, and licenses persist from session to session.
 
-- Tamura (SAXA) HW210 (Ghost Squad, Gundam) and Sanwa CRP-1231LR-10NAB (Maximum Tune series) card readers fully emulated.
-- Create, share, swap cards on the fly, one per player. Insert the card with a single key.
-- Cards are read, written and kept: a card carries its player's progress from one session to the next.
-- For Ghost Squad players, grab [Dogehiro](https://github.com/Tovarichtch/dogehiro) to view and edit your cards.
+---
 
-## Snapshots
+## How to Prepare Game Data from MAME CHDs
 
-Native VM snapshots, kept in a qcow2 beside the settings. Snapshots are saved per game, quicksaving and quickloading on the fly.
+Chihiro games require **NetBoot `.bin`** memory images, and titles with secondary billboard cutscenes require extracted `.mp4` video files.
 
-## Link for multi-cabinets
+### Step 1: Converting Game CHDs to NetBoot `.bin`
+To convert a game GD-ROM / DVD CHD (e.g. `gdx-0013.chd`, `gdx-0017.chd`) to a bootable NetBoot `.bin` image:
 
-Link up to 4 cabinets for supported games: Ollie King, OutRun 2, OutRun 2 SP, Maximum Tune 1 & 2. The real network board is emulated and runs its own firmware, so every linked cabinet needs the network firmware (ver1305.bin). Maximum Tune needs a wired network.
+1. Download **[Chihiro-netboot](https://github.com/Tovarichtch/chihiro-netboot)**.
+2. Run the tool to unpack and decrypt the partition:
+   ```bash
+   python chihiro-netboot.py --extract <path_to_game.chd> -o <output_folder>
+   ```
+   *(Or launch the GUI to select your CHD).*
+3. The resulting `.bin` file (e.g., `gundamos.bin`, `gundcb79.bin`) can be loaded directly in xemu via **Machine → Load Media Board Image** or via command line:
+   ```bash
+   xemu.exe -machine xbox,chihiro=on -bios chihiro_xbox_bios.bin -m 128
+   ```
 
-## Cabinet settings
+### Step 2: Extracting Billboard Cutscenes from DVD CHDs (`CDV-10010`)
+*Gundam 0079: Card Builder* cutscenes are stored as dual-stream left/right Sofdec (`.sfd`) video pairs on the `cdv-10010.chd` disc.
 
-Free play, region, and the operator keys. The test menu works, and so do the
-settings it writes. Hi-scores are saved.
+To extract and stitch them into modern panoramic `.mp4` files:
+1. Ensure **FFmpeg** and **chdman** (from MAME tools) are installed and available in your `PATH`.
+2. Use `chihiro-billboard.py`:
+   ```bash
+   python chihiro-billboard.py --extract path/to/cdv-10010.chd -o movies/
+   ```
+3. The tool will automatically:
+   - Extract `E02L_max.sfd` + `E02R_max.sfd` through `E17L_max.sfd` + `E17R_max.sfd`.
+   - Stitch the Left and Right halves together using FFmpeg `hstack`.
+   - Encode standard widescreen **`E02.mp4` through `E17.mp4`** files with high-quality AAC stereo audio.
+4. Place the generated `.mp4` files into one of the following locations:
+   - A `movies/` folder beside `xemu.exe`.
+   - `Z:\roms\Chihiro-NetBoot\movies\`.
+   - Any custom folder specified in `xemu.toml` under `[chihiro.billboard] movie_dir = "..."`.
 
-## Performance optimization (experimental)
+---
 
-The fork carries its own work on the NV2A and the guest CPU, switchable:
+## Configuration & Usage
 
-| Setting | What it does |
-|---|---|
-| `GPU boost` | Smoother, faster rendering. Turn it off and you get stock xemu |
-| `CPU boost` | Games run faster. Turn it off only if one misbehaves; needs a restart. |
-| `Smooth first play` | Prepares the effects while the game boots, so the first minutes do not stutter as it compiles them |
-| `Real hardware speed` | Holds the machine to the cabinet's own pace. Off, it runs as fast as your computer allows. |
+In `xemu.toml` (or via the **Chihiro** settings menu in xemu):
 
-This heavy lifting was done with an enormous amount of debugging with Ghidra-MCP and Claude Code sessions. The aim is to test and bring incremental changes to upstream for native integration in xemu.
+```toml
+[chihiro]
+system = true
 
-## Building
-
-Compile the `perf-experimental` branch for all the optimizations; you can switch back to the stock NV2A at any time (GPU boost off).
-Compile the `main` branch if you just want Chihiro emulation without any optimization. This branch does contain some core changes and fixes.
-
-## Reporting a problem
-
-Tick **Debug mode** in the experimental settings. It writes a log to the `logs` folder saying
-where each frame went: the frame rate, the stutters, the effects being compiled, the
-waits on the graphics card and on the processor. Attach it to the report and the
-problem can be read rather than guessed. It costs nothing while it is off.
-
-**DO NOT REPORT ISSUES AND FEATURE REQUESTS ON MAIN XEMU GITHUB**
-
-Report issues in this repository's [Issues](https://github.com/Tovarichtch/xemu/issues), never on xemu's GitHub.
-
-## Important notes
-
-- To set it up and see what xemu Chihiro can do, read the [wiki](https://github.com/Tovarichtch/xemu/wiki/) (WIP).
-- Make sure the controller you play with is selected on port 1 in the `Input` tab. If you play with a steering wheel, select it on `Port 2`.
-- Xbox retail games run, but only a few have been tested: expect glitches and bugs.
-
-## Doge mode (Easter egg)
-
-In your `xemu.toml` file, at the very bottom, add:
-
+[chihiro.billboard]
+enable = true
+monitor = 1            # Target monitor index (0 = primary, 1 = secondary)
+fullscreen = false     # Start billboard in borderless fullscreen
+movie_dir = "movies"   # Directory containing E02.mp4..E17.mp4
 ```
-[doge]
-doge_mode = 'wow'
-```
+
+---
 
 ## License
 
-GPL-2.0, like xemu.
+GPL-2.0, matching upstream xemu.
 
-## About
+## Acknowledgements
 
-Special thanks to all testers and SUPA Peter for extensive testing over and over again.
+* Upstream [xemu](https://xemu.app) project by Matt Borgerson and contributors.
+* Sega Chihiro emulation research by Tovarichtch, Réda Chérif-Touil, and the arcade preservation community.
+* Special thanks to the arcade testing community for feedback and validation.
 
-You can follow me on [Arcade Community discord](https://discord.gg/a2rHM7BVy) for my next projects.
