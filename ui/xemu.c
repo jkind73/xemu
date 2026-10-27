@@ -959,10 +959,9 @@ static bool event_watch_callback(void *userdata, SDL_Event *event)
 }
 
 /* CHIHIRO (not upstream): the window title names the fork, the upstream
- * release it builds on, the playtest, and the game once it is known:
- * "xemu Chihiro 0.8.134 | Playtest #2 | Virtua Cop 3". */
+ * release it builds on, and the game once it is known:
+ * "xemu Chihiro 0.8.143 | Virtua Cop 3". */
 #define XEMU_BUILD_TITLE "xemu Chihiro"
-#define XEMU_BUILD_LABEL "Playtest #2"
 
 static const char *const chihiro_game_titles[] = {
     [CONFIG_CHIHIRO_JVS_PROFILE_HOTD3] = "The House of the Dead III",
@@ -1015,14 +1014,14 @@ static void window_title(char *title, size_t n)
             }
         }
     }
-    snprintf(title, n, "%s %.*s%s | %s%s%s", XEMU_BUILD_TITLE, vlen,
+    snprintf(title, n, "%s %.*s%s%s%s", XEMU_BUILD_TITLE, vlen,
              xemu_version,
 #ifdef XEMU_DEBUG_BUILD
              " Debug",
 #else
              "",
 #endif
-             XEMU_BUILD_LABEL, game[0] ? " | " : "", game);
+             game[0] ? " | " : "", game);
 }
 
 /* Once a second, under the lock (the XBE query reads guest memory). */
